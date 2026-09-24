@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta name="today-build" content="online-launch-v1">
+    <meta name="today-build" content="cloud-sync-v1">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Today</title>
@@ -4594,6 +4594,31 @@ button:active {
     }
 }
 
+
+/* CLOUD SYNC V1 */
+.cloud-sync-setting{align-items:flex-start}
+.cloud-sync-copy{min-width:0}
+.cloud-sync-status-line{display:flex;align-items:center;gap:7px;min-height:22px;margin-top:8px;font-size:10px;font-weight:700;color:#71717a}
+.cloud-sync-dot{width:8px;height:8px;flex:0 0 8px;border-radius:50%;background:#a1a1aa;box-shadow:0 0 0 3px rgba(161,161,170,.13)}
+.cloud-sync-dot.ready{background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.13)}
+.cloud-sync-dot.busy{background:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.14);animation:cloudSyncPulse 1.1s ease-in-out infinite}
+.cloud-sync-dot.error{background:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.13)}
+@keyframes cloudSyncPulse{50%{opacity:.35}}
+.cloud-sync-code-box{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;margin-top:8px;padding:8px;border:1px solid #e4e4e7;border-radius:11px;background:#fafafa}
+.cloud-sync-code-box[hidden]{display:none}
+.cloud-sync-code-box>span{font-size:9px;color:#71717a}
+.cloud-sync-code-box code{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;font-weight:800;letter-spacing:.04em;color:#27272a}
+.cloud-sync-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px;max-width:240px}
+.cloud-sync-actions button[hidden]{display:none}
+.cloud-sync-privacy{max-width:560px;margin-top:7px!important;font-size:9px!important;line-height:1.45!important}
+.danger-lite{color:#b91c1c}
+body.dark .cloud-sync-code-box{border-color:#3f3f46;background:#27272a}
+body.dark .cloud-sync-code-box code{color:#fafafa}
+body.dark .cloud-sync-code-box>span,body.dark .cloud-sync-status-line,body.dark .cloud-sync-privacy{color:#a1a1aa}
+body.dark .danger-lite{color:#fca5a5}
+@media(max-width:680px){.cloud-sync-setting{gap:12px}.cloud-sync-actions{width:100%;max-width:none;justify-content:stretch}.cloud-sync-actions button{flex:1 1 120px}.cloud-sync-code-box{grid-template-columns:1fr auto}.cloud-sync-code-box>span{grid-column:1/-1}}
+@media(prefers-reduced-motion:reduce){.cloud-sync-dot.busy{animation:none}}
+
 </style>
 
 </head>
@@ -4720,6 +4745,29 @@ button:active {
                 <button class="settings-mini-button" type="button" onclick="exportTodayData()" data-i18n="export">Export</button>
                 <button class="settings-mini-button" type="button" onclick="openImportPicker()" data-i18n="import">Import</button>
                 <input id="importDataInput" type="file" accept=".json,application/json" hidden>
+            </div>
+        </div>
+
+        <div class="setting-item cloud-sync-setting">
+            <div class="cloud-sync-copy">
+                <strong id="cloudSyncTitle">Cloud Sync</strong>
+                <p id="cloudSyncDescription">Keep this Today data synced across your devices</p>
+                <div class="cloud-sync-status-line">
+                    <span id="cloudSyncDot" class="cloud-sync-dot"></span>
+                    <span id="cloudSyncStatus">Local only</span>
+                </div>
+                <div id="cloudSyncCodeBox" class="cloud-sync-code-box" hidden>
+                    <span id="cloudSyncCodeLabel">Your sync code</span>
+                    <code id="cloudSyncCodeText"></code>
+                    <button class="settings-mini-button" id="cloudCopyButton" type="button" onclick="copyCloudSyncCode()">Copy</button>
+                </div>
+                <p id="cloudSyncPrivacy" class="cloud-sync-privacy">Your planner is encrypted in the browser before it is uploaded. Keep the sync code private.</p>
+            </div>
+            <div class="cloud-sync-actions">
+                <button class="settings-mini-button" id="cloudCreateButton" type="button" onclick="createCloudSync()">Create sync</button>
+                <button class="settings-mini-button" id="cloudConnectButton" type="button" onclick="connectCloudSync()">Connect code</button>
+                <button class="settings-mini-button" id="cloudSyncNowButton" type="button" onclick="syncCloudNow(true)" hidden>Sync now</button>
+                <button class="settings-mini-button danger-lite" id="cloudDisconnectButton" type="button" onclick="disconnectCloudSync()" hidden>Disconnect</button>
             </div>
         </div>
 
@@ -5474,7 +5522,7 @@ button:active {
     <script>
 /* Today — application logic */
 
-const TODAY_APP_VERSION = "final-polish-v1";
+const TODAY_APP_VERSION = "cloud-sync-v1";
 const TODAY_DATA_VERSION = 5;
 
 function safeReadJSON(key, fallback) {
@@ -5728,6 +5776,33 @@ let todayReloadingForUpdate = false;
 
     const translations = {
         en: {
+            "cloudSync": "Cloud Sync",
+            "cloudSyncDesc": "Keep this Today data synced across your devices",
+            "cloudLocalOnly": "Local only",
+            "cloudOnlineOnly": "Cloud sync works on the online HTTPS version",
+            "cloudReady": "Synced",
+            "cloudSyncing": "Syncing…",
+            "cloudChecking": "Checking cloud…",
+            "cloudError": "Sync unavailable",
+            "cloudNeedsStorage": "Cloud storage is not connected yet",
+            "cloudCreate": "Create sync",
+            "cloudConnect": "Connect code",
+            "cloudSyncNow": "Sync now",
+            "cloudDisconnect": "Disconnect",
+            "cloudCodeLabel": "Your sync code",
+            "cloudCopy": "Copy",
+            "cloudCopied": "Copied",
+            "cloudPrivacy": "Your planner is encrypted in the browser before it is uploaded. Keep the sync code private.",
+            "cloudEnterCode": "Enter your Today sync code",
+            "cloudInvalidCode": "That sync code is not valid.",
+            "cloudCodeNotFound": "I couldn't find data for that sync code.",
+            "cloudConnectConfirm": "This will replace the Today data on this device with the cloud copy. Continue?",
+            "cloudDisconnectConfirm": "Disconnect this device from cloud sync? Your local Today data will stay here.",
+            "cloudCreatedMessage": "Cloud sync is ready. Copy this code and enter it on your other device.",
+            "cloudSetupNeeded": "Cloud Sync is installed, but Vercel Blob storage still needs to be connected to this project.",
+            "cloudDecryptionError": "That code could not decrypt this cloud backup.",
+            "cloudUpdatedFromOtherDevice": "Updated from another device",
+
             "previewTask": "Task",
             "previewEvent": "Event",
             "previewToday": "Today",
@@ -6030,6 +6105,33 @@ let todayReloadingForUpdate = false;
             overdue: "Overdue"
         },
         lt: {
+            "cloudSync": "Debesų sinchronizacija",
+            "cloudSyncDesc": "Sinchronizuok šiuos Today duomenis tarp savo įrenginių",
+            "cloudLocalOnly": "Tik šiame įrenginyje",
+            "cloudOnlineOnly": "Debesų sinchronizacija veikia internetinėje HTTPS versijoje",
+            "cloudReady": "Sinchronizuota",
+            "cloudSyncing": "Sinchronizuojama…",
+            "cloudChecking": "Tikrinamas debesis…",
+            "cloudError": "Sinchronizacija nepasiekiama",
+            "cloudNeedsStorage": "Debesų saugykla dar neprijungta",
+            "cloudCreate": "Sukurti sinchronizaciją",
+            "cloudConnect": "Prijungti kodą",
+            "cloudSyncNow": "Sinchronizuoti dabar",
+            "cloudDisconnect": "Atjungti",
+            "cloudCodeLabel": "Tavo sinchronizacijos kodas",
+            "cloudCopy": "Kopijuoti",
+            "cloudCopied": "Nukopijuota",
+            "cloudPrivacy": "Planavimo duomenys užšifruojami naršyklėje prieš juos įkeliant. Saugok sinchronizacijos kodą.",
+            "cloudEnterCode": "Įvesk Today sinchronizacijos kodą",
+            "cloudInvalidCode": "Šis sinchronizacijos kodas netinkamas.",
+            "cloudCodeNotFound": "Neradau duomenų pagal šį sinchronizacijos kodą.",
+            "cloudConnectConfirm": "Šio įrenginio Today duomenys bus pakeisti debesies kopija. Tęsti?",
+            "cloudDisconnectConfirm": "Atjungti šį įrenginį nuo debesų sinchronizacijos? Vietiniai duomenys liks čia.",
+            "cloudCreatedMessage": "Debesų sinchronizacija paruošta. Nukopijuok kodą ir įvesk jį kitame įrenginyje.",
+            "cloudSetupNeeded": "Cloud Sync įdiegtas, bet prie šio projekto dar reikia prijungti Vercel Blob saugyklą.",
+            "cloudDecryptionError": "Šiuo kodu nepavyko iššifruoti debesies kopijos.",
+            "cloudUpdatedFromOtherDevice": "Atnaujinta iš kito įrenginio",
+
             "previewTask": "Užduotis",
             "previewEvent": "Įvykis",
             "previewToday": "Šiandien",
@@ -6333,6 +6435,33 @@ let todayReloadingForUpdate = false;
             overdue: "Pavėluota"
         },
         es: {
+            "cloudSync": "Sincronización en la nube",
+            "cloudSyncDesc": "Mantén estos datos de Today sincronizados entre tus dispositivos",
+            "cloudLocalOnly": "Solo local",
+            "cloudOnlineOnly": "La sincronización funciona en la versión HTTPS en línea",
+            "cloudReady": "Sincronizado",
+            "cloudSyncing": "Sincronizando…",
+            "cloudChecking": "Comprobando la nube…",
+            "cloudError": "Sincronización no disponible",
+            "cloudNeedsStorage": "El almacenamiento en la nube aún no está conectado",
+            "cloudCreate": "Crear sincronización",
+            "cloudConnect": "Conectar código",
+            "cloudSyncNow": "Sincronizar ahora",
+            "cloudDisconnect": "Desconectar",
+            "cloudCodeLabel": "Tu código de sincronización",
+            "cloudCopy": "Copiar",
+            "cloudCopied": "Copiado",
+            "cloudPrivacy": "Tus datos se cifran en el navegador antes de subirse. Mantén privado el código de sincronización.",
+            "cloudEnterCode": "Introduce tu código de sincronización de Today",
+            "cloudInvalidCode": "Ese código de sincronización no es válido.",
+            "cloudCodeNotFound": "No encontré datos para ese código de sincronización.",
+            "cloudConnectConfirm": "Esto sustituirá los datos de Today de este dispositivo por la copia de la nube. ¿Continuar?",
+            "cloudDisconnectConfirm": "¿Desconectar este dispositivo de la nube? Tus datos locales permanecerán aquí.",
+            "cloudCreatedMessage": "La sincronización está lista. Copia este código e introdúcelo en tu otro dispositivo.",
+            "cloudSetupNeeded": "Cloud Sync está instalado, pero todavía hay que conectar Vercel Blob a este proyecto.",
+            "cloudDecryptionError": "Ese código no pudo descifrar la copia de la nube.",
+            "cloudUpdatedFromOtherDevice": "Actualizado desde otro dispositivo",
+
             "previewTask": "Tarea",
             "previewEvent": "Evento",
             "previewToday": "Hoy",
@@ -6756,6 +6885,15 @@ let todayReloadingForUpdate = false;
         setText("remindersSettingDescription", t("remindersDesc"));
         setText("dataSettingTitle", t("data"));
         setText("dataSettingDescription", t("dataDesc"));
+        setText("cloudSyncTitle", t("cloudSync"));
+        setText("cloudSyncDescription", t("cloudSyncDesc"));
+        setText("cloudSyncCodeLabel", t("cloudCodeLabel"));
+        setText("cloudCreateButton", t("cloudCreate"));
+        setText("cloudConnectButton", t("cloudConnect"));
+        setText("cloudSyncNowButton", t("cloudSyncNow"));
+        setText("cloudDisconnectButton", t("cloudDisconnect"));
+        setText("cloudCopyButton", t("cloudCopy"));
+        setText("cloudSyncPrivacy", t("cloudPrivacy"));
         setText("languageSettingTitle", t("language"));
         setText("languageSettingDescription", t("languageDesc"));
         setText("guideSettingTitle", t("guideSetting"));
@@ -6866,6 +7004,7 @@ let todayReloadingForUpdate = false;
         loadDailyNote();
         updateQuickAddType();
         updateQuickAddPreview();
+        updateCloudSyncUI();
 
         if (document.getElementById("controlTourOverlay")?.classList.contains("open")) {
             renderControlTourStep();
@@ -8079,6 +8218,316 @@ let todayReloadingForUpdate = false;
 
             results.appendChild(row);
         });
+    }
+
+
+    const TODAY_CLOUD_API = "/api/sync";
+    const TODAY_CLOUD_CODE_KEY = "todayCloudSyncCode";
+    const TODAY_CLOUD_DEVICE_KEY = "todayCloudDeviceId";
+    const TODAY_CLOUD_LAST_SYNCED_KEY = "todayCloudLastSyncedFingerprint";
+    const TODAY_CLOUD_LAST_REMOTE_KEY = "todayCloudLastRemoteUpdatedAt";
+    const TODAY_CLOUD_LOCAL_CHANGED_KEY = "todayCloudLocalChangedAt";
+
+    let cloudSyncInFlight = false;
+    let cloudSyncTimer = null;
+    let cloudSyncLastSeenFingerprint = "";
+    let cloudSyncStorageUnavailable = false;
+
+    function cloudSyncSupportedHere() {
+        return location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1";
+    }
+
+    function getCloudDeviceId() {
+        let id = localStorage.getItem(TODAY_CLOUD_DEVICE_KEY);
+        if (!id) {
+            id = createLocalId("device");
+            localStorage.setItem(TODAY_CLOUD_DEVICE_KEY, id);
+        }
+        return id;
+    }
+
+    function normalizeCloudCode(code) {
+        return String(code || "").toUpperCase().replace(/[^A-Z2-9]/g, "");
+    }
+
+    function formatCloudCode(code) {
+        const clean = normalizeCloudCode(code);
+        return clean.match(/.{1,5}/g)?.join("-") || clean;
+    }
+
+    function generateCloudCode() {
+        const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        const bytes = new Uint8Array(25);
+        crypto.getRandomValues(bytes);
+        let value = "";
+        bytes.forEach(byte => { value += alphabet[byte % alphabet.length]; });
+        return formatCloudCode(value);
+    }
+
+    function bytesToBase64(bytes) {
+        let binary = "";
+        bytes.forEach(byte => { binary += String.fromCharCode(byte); });
+        return btoa(binary);
+    }
+
+    function base64ToBytes(value) {
+        const binary = atob(value);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        return bytes;
+    }
+
+    function bytesToHex(bytes) {
+        return [...bytes].map(byte => byte.toString(16).padStart(2, "0")).join("");
+    }
+
+    async function sha256Bytes(text) {
+        return new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)));
+    }
+
+    async function getCloudSyncId(code) {
+        const digest = await sha256Bytes(\`today-sync-id-v1:\${normalizeCloudCode(code)}\`);
+        return bytesToHex(digest).slice(0, 48);
+    }
+
+    async function getCloudEncryptionKey(code) {
+        const normalized = normalizeCloudCode(code);
+        const rawKey = await crypto.subtle.importKey("raw", new TextEncoder().encode(normalized), "PBKDF2", false, ["deriveKey"]);
+        const saltDigest = await sha256Bytes(\`today-sync-salt-v1:\${normalized}\`);
+        return crypto.subtle.deriveKey(
+            { name: "PBKDF2", salt: saltDigest.slice(0,16), iterations: 180000, hash: "SHA-256" },
+            rawKey,
+            { name: "AES-GCM", length: 256 },
+            false,
+            ["encrypt","decrypt"]
+        );
+    }
+
+    function buildCloudSnapshot() {
+        return {
+            schemaVersion:TODAY_DATA_VERSION, tasks, events, projects, dailyNotes, activityHistory,
+            dailyGoal, accentColor, appLanguage,
+            darkMode:document.body.classList.contains("dark"),
+            taskFilter:currentTaskFilter, projectFilter:currentProjectFilter
+        };
+    }
+
+    async function cloudFingerprint(snapshot = buildCloudSnapshot()) {
+        return bytesToHex(await sha256Bytes(JSON.stringify(snapshot)));
+    }
+
+    async function encryptCloudSnapshot(code, snapshot) {
+        const key = await getCloudEncryptionKey(code);
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const plain = new TextEncoder().encode(JSON.stringify(snapshot));
+        const encrypted = new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM",iv}, key, plain));
+        return {version:1,iv:bytesToBase64(iv),cipher:bytesToBase64(encrypted)};
+    }
+
+    async function decryptCloudSnapshot(code, encrypted) {
+        const key = await getCloudEncryptionKey(code);
+        const plain = await crypto.subtle.decrypt(
+            {name:"AES-GCM",iv:base64ToBytes(encrypted.iv)},
+            key,
+            base64ToBytes(encrypted.cipher)
+        );
+        return JSON.parse(new TextDecoder().decode(plain));
+    }
+
+    function setCloudSyncStatus(kind, message) {
+        const status=document.getElementById("cloudSyncStatus");
+        const dot=document.getElementById("cloudSyncDot");
+        if(status) status.textContent=message;
+        if(dot){dot.classList.remove("ready","busy","error");if(kind)dot.classList.add(kind);}
+    }
+
+    function updateCloudSyncUI() {
+        const code=localStorage.getItem(TODAY_CLOUD_CODE_KEY)||"";
+        const connected=Boolean(code);
+        const box=document.getElementById("cloudSyncCodeBox");
+        const text=document.getElementById("cloudSyncCodeText");
+        const create=document.getElementById("cloudCreateButton");
+        const connect=document.getElementById("cloudConnectButton");
+        const now=document.getElementById("cloudSyncNowButton");
+        const disconnect=document.getElementById("cloudDisconnectButton");
+        if(box)box.hidden=!connected;
+        if(text)text.textContent=connected?formatCloudCode(code):"";
+        if(create)create.hidden=connected;
+        if(connect)connect.hidden=connected;
+        if(now)now.hidden=!connected;
+        if(disconnect)disconnect.hidden=!connected;
+
+        if(!cloudSyncSupportedHere()){setCloudSyncStatus("",t("cloudOnlineOnly"));return;}
+        if(!connected){setCloudSyncStatus("",t("cloudLocalOnly"));return;}
+        if(cloudSyncStorageUnavailable){setCloudSyncStatus("error",t("cloudNeedsStorage"));return;}
+        if(!cloudSyncInFlight)setCloudSyncStatus("ready",t("cloudReady"));
+    }
+
+    async function cloudApiRequest(method,syncId,payload=null){
+        const options={method,headers:{Accept:"application/json"},cache:"no-store"};
+        let url=TODAY_CLOUD_API;
+        if(method==="GET") url+=\`?id=\${encodeURIComponent(syncId)}\`;
+        else {options.headers["Content-Type"]="application/json";options.body=JSON.stringify({syncId,payload});}
+        const response=await fetch(url,options);
+        let body={};try{body=await response.json();}catch(error){}
+        if(response.status===503&&body?.error==="storage_not_configured")cloudSyncStorageUnavailable=true;
+        if(!response.ok){const error=new Error(body?.error||\`cloud_\${response.status}\`);error.status=response.status;throw error;}
+        cloudSyncStorageUnavailable=false;return body;
+    }
+
+    async function pushCloudSnapshot(code,snapshot=buildCloudSnapshot()){
+        const syncId=await getCloudSyncId(code);
+        const fingerprint=await cloudFingerprint(snapshot);
+        const encrypted=await encryptCloudSnapshot(code,snapshot);
+        const updatedAt=Date.now();
+        await cloudApiRequest("POST",syncId,{...encrypted,updatedAt,deviceId:getCloudDeviceId(),schemaVersion:TODAY_DATA_VERSION});
+        localStorage.setItem(TODAY_CLOUD_LAST_SYNCED_KEY,fingerprint);
+        localStorage.setItem(TODAY_CLOUD_LAST_REMOTE_KEY,String(updatedAt));
+        localStorage.setItem(TODAY_CLOUD_LOCAL_CHANGED_KEY,String(updatedAt));
+        cloudSyncLastSeenFingerprint=fingerprint;
+        return {fingerprint,updatedAt};
+    }
+
+    async function fetchCloudSnapshot(code){
+        const result=await cloudApiRequest("GET",await getCloudSyncId(code));
+        if(!result?.payload){const e=new Error("missing_payload");e.status=404;throw e;}
+        try{return {snapshot:await decryptCloudSnapshot(code,result.payload),payload:result.payload};}
+        catch(error){const e=new Error("decrypt_failed");e.cause=error;throw e;}
+    }
+
+    function applyCloudSnapshot(snapshot){
+        if(!snapshot||!Array.isArray(snapshot.tasks)||!Array.isArray(snapshot.events))throw new Error("invalid_snapshot");
+        localStorage.setItem("tasks",JSON.stringify(snapshot.tasks));
+        localStorage.setItem("events",JSON.stringify(snapshot.events));
+        localStorage.setItem("projects",JSON.stringify(Array.isArray(snapshot.projects)?snapshot.projects:projects));
+        localStorage.setItem("dailyNotes",JSON.stringify(snapshot.dailyNotes&&typeof snapshot.dailyNotes==="object"?snapshot.dailyNotes:{}));
+        localStorage.setItem("activityHistory",JSON.stringify(snapshot.activityHistory&&typeof snapshot.activityHistory==="object"?snapshot.activityHistory:{}));
+        localStorage.setItem("dailyGoal",String(Math.max(1,Number(snapshot.dailyGoal)||3)));
+        localStorage.setItem("accentColor",String(snapshot.accentColor||"graphite"));
+        localStorage.setItem("appLanguage",["en","lt","es"].includes(snapshot.appLanguage)?snapshot.appLanguage:appLanguage);
+        localStorage.setItem("darkMode",snapshot.darkMode?"true":"false");
+        localStorage.setItem("taskFilter",String(snapshot.taskFilter||"all"));
+        localStorage.setItem("projectFilter",String(snapshot.projectFilter||"all"));
+    }
+
+    async function createCloudSync(){
+        if(!cloudSyncSupportedHere()){alert(t("cloudOnlineOnly"));return;}
+        if(!window.crypto?.subtle){setCloudSyncStatus("error",t("cloudError"));return;}
+        const code=generateCloudCode();
+        localStorage.setItem(TODAY_CLOUD_CODE_KEY,code);
+        updateCloudSyncUI();
+        cloudSyncInFlight=true;setCloudSyncStatus("busy",t("cloudSyncing"));
+        try{await pushCloudSnapshot(code);alert(t("cloudCreatedMessage"));}
+        catch(error){if(cloudSyncStorageUnavailable)alert(t("cloudSetupNeeded"));else{console.error(error);setCloudSyncStatus("error",t("cloudError"));}}
+        finally{cloudSyncInFlight=false;updateCloudSyncUI();}
+    }
+
+    async function connectCloudSync(){
+        if(!cloudSyncSupportedHere()){alert(t("cloudOnlineOnly"));return;}
+        const entered=prompt(t("cloudEnterCode"));if(entered===null)return;
+        const code=formatCloudCode(entered);
+        if(normalizeCloudCode(code).length!==25){alert(t("cloudInvalidCode"));return;}
+        cloudSyncInFlight=true;setCloudSyncStatus("busy",t("cloudChecking"));
+        try{
+            const remote=await fetchCloudSnapshot(code);
+            if(!confirm(t("cloudConnectConfirm")))return;
+            localStorage.setItem(TODAY_CLOUD_CODE_KEY,code);
+            applyCloudSnapshot(remote.snapshot);
+            const fp=await cloudFingerprint(remote.snapshot);
+            localStorage.setItem(TODAY_CLOUD_LAST_SYNCED_KEY,fp);
+            localStorage.setItem(TODAY_CLOUD_LAST_REMOTE_KEY,String(Number(remote.payload.updatedAt)||Date.now()));
+            localStorage.setItem(TODAY_CLOUD_LOCAL_CHANGED_KEY,String(Number(remote.payload.updatedAt)||Date.now()));
+            location.reload();
+        }catch(error){
+            if(error.message==="decrypt_failed")alert(t("cloudDecryptionError"));
+            else if(error.status===404)alert(t("cloudCodeNotFound"));
+            else if(cloudSyncStorageUnavailable)alert(t("cloudSetupNeeded"));
+            else{console.error(error);setCloudSyncStatus("error",t("cloudError"));}
+        }finally{cloudSyncInFlight=false;updateCloudSyncUI();}
+    }
+
+    async function copyCloudSyncCode(){
+        const code=localStorage.getItem(TODAY_CLOUD_CODE_KEY);if(!code)return;
+        try{
+            await navigator.clipboard.writeText(formatCloudCode(code));
+            const button=document.getElementById("cloudCopyButton");
+            if(button){const previous=button.textContent;button.textContent=t("cloudCopied");setTimeout(()=>{button.textContent=previous||t("cloudCopy");},1200);}
+        }catch(error){prompt(t("cloudCodeLabel"),formatCloudCode(code));}
+    }
+
+    function disconnectCloudSync(){
+        if(!confirm(t("cloudDisconnectConfirm")))return;
+        [TODAY_CLOUD_CODE_KEY,TODAY_CLOUD_LAST_SYNCED_KEY,TODAY_CLOUD_LAST_REMOTE_KEY,TODAY_CLOUD_LOCAL_CHANGED_KEY].forEach(k=>localStorage.removeItem(k));
+        cloudSyncLastSeenFingerprint="";cloudSyncStorageUnavailable=false;updateCloudSyncUI();
+    }
+
+    async function syncCloudNow(showErrors=false){
+        const code=localStorage.getItem(TODAY_CLOUD_CODE_KEY);
+        if(!code||!cloudSyncSupportedHere()||cloudSyncInFlight){updateCloudSyncUI();return;}
+        cloudSyncInFlight=true;setCloudSyncStatus("busy",t("cloudSyncing"));
+        try{
+            const snapshot=buildCloudSnapshot();
+            const localFingerprint=await cloudFingerprint(snapshot);
+            if(cloudSyncLastSeenFingerprint&&localFingerprint!==cloudSyncLastSeenFingerprint)localStorage.setItem(TODAY_CLOUD_LOCAL_CHANGED_KEY,String(Date.now()));
+            cloudSyncLastSeenFingerprint=localFingerprint;
+
+            let remote;
+            try{remote=await fetchCloudSnapshot(code);}
+            catch(error){if(error.status===404){await pushCloudSnapshot(code,snapshot);return;}throw error;}
+
+            const remoteFingerprint=await cloudFingerprint(remote.snapshot);
+            const lastSynced=localStorage.getItem(TODAY_CLOUD_LAST_SYNCED_KEY)||"";
+            const remoteUpdatedAt=Number(remote.payload.updatedAt)||0;
+            const localChangedAt=Number(localStorage.getItem(TODAY_CLOUD_LOCAL_CHANGED_KEY))||0;
+
+            if(remoteFingerprint===localFingerprint){
+                localStorage.setItem(TODAY_CLOUD_LAST_SYNCED_KEY,localFingerprint);
+                localStorage.setItem(TODAY_CLOUD_LAST_REMOTE_KEY,String(remoteUpdatedAt));
+                return;
+            }
+
+            const localChanged=localFingerprint!==lastSynced;
+            const remoteChanged=remoteFingerprint!==lastSynced;
+
+            if(remoteChanged&&!localChanged){
+                applyCloudSnapshot(remote.snapshot);
+                localStorage.setItem(TODAY_CLOUD_LAST_SYNCED_KEY,remoteFingerprint);
+                localStorage.setItem(TODAY_CLOUD_LAST_REMOTE_KEY,String(remoteUpdatedAt));
+                localStorage.setItem(TODAY_CLOUD_LOCAL_CHANGED_KEY,String(remoteUpdatedAt));
+                showPwaStatus(t("cloudUpdatedFromOtherDevice"),1800);
+                setTimeout(()=>location.reload(),500);
+                return;
+            }
+
+            if(localChanged&&!remoteChanged){await pushCloudSnapshot(code,snapshot);return;}
+
+            if(remoteUpdatedAt>localChangedAt){
+                applyCloudSnapshot(remote.snapshot);
+                localStorage.setItem(TODAY_CLOUD_LAST_SYNCED_KEY,remoteFingerprint);
+                localStorage.setItem(TODAY_CLOUD_LAST_REMOTE_KEY,String(remoteUpdatedAt));
+                localStorage.setItem(TODAY_CLOUD_LOCAL_CHANGED_KEY,String(remoteUpdatedAt));
+                showPwaStatus(t("cloudUpdatedFromOtherDevice"),1800);
+                setTimeout(()=>location.reload(),500);
+            }else await pushCloudSnapshot(code,snapshot);
+        }catch(error){
+            if(cloudSyncStorageUnavailable){if(showErrors)alert(t("cloudSetupNeeded"));}
+            else{console.error(error);if(showErrors)alert(t("cloudError"));}
+        }finally{cloudSyncInFlight=false;updateCloudSyncUI();}
+    }
+
+    async function initializeCloudSync(){
+        updateCloudSyncUI();
+        const code=localStorage.getItem(TODAY_CLOUD_CODE_KEY);
+        if(!code||!cloudSyncSupportedHere()||!window.crypto?.subtle)return;
+        try{
+            cloudSyncLastSeenFingerprint=await cloudFingerprint(buildCloudSnapshot());
+            if(!localStorage.getItem(TODAY_CLOUD_LAST_SYNCED_KEY))localStorage.setItem(TODAY_CLOUD_LOCAL_CHANGED_KEY,String(Date.now()));
+        }catch(error){return;}
+        clearInterval(cloudSyncTimer);
+        cloudSyncTimer=setInterval(()=>{if(!document.hidden&&navigator.onLine)syncCloudNow(false);},20000);
+        window.addEventListener("online",()=>syncCloudNow(false));
+        document.addEventListener("visibilitychange",()=>{if(!document.hidden&&navigator.onLine)syncCloudNow(false);});
+        setTimeout(()=>syncCloudNow(false),1200);
     }
 
     function exportTodayData() {
@@ -10898,6 +11347,8 @@ function wireServiceWorkerUpdate(registration) {
 const assetLoadWarning = document.getElementById("assetLoadWarning");
 if (assetLoadWarning) assetLoadWarning.remove();
 
+
+initializeCloudSync();
 </script>
 </body>
 </html>
