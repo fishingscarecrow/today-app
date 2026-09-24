@@ -4793,3 +4793,47 @@ body.dark .danger-lite {
     outline-offset: 3px;
 }
 
+
+
+/* SETTINGS SCROLL FIX V1
+   Keeps the settings sheet usable in installed PWAs and short mobile viewports. */
+.settings-panel {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding-top: max(16px, env(safe-area-inset-top));
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+.settings-box {
+    max-height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    scrollbar-gutter: stable;
+}
+
+.settings-header {
+    position: sticky;
+    top: -1px;
+    z-index: 8;
+    padding-bottom: 12px;
+    background: inherit;
+}
+
+@supports not (height: 100dvh) {
+    .settings-box {
+        max-height: calc(100vh - 32px);
+    }
+}
+
+@media (max-height: 700px), (max-width: 520px) {
+    .settings-panel {
+        align-items: flex-start;
+    }
+
+    .settings-box {
+        border-radius: 18px;
+    }
+}
