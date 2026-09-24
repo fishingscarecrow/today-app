@@ -1,8 +1,13 @@
 
 /* Today — application logic */
 
-const TODAY_APP_VERSION = "runtime-fix-v1";
+const TODAY_APP_VERSION = "push-notifications-v1";
 const TODAY_DATA_VERSION = 5;
+
+const TODAY_PUSH_VAPID_PUBLIC_KEY = "BPqanrny4bDb0sAoBip7On2-v0TkTJt7pLMxhhViAUDugGJZAsSc0SweTXmS_yTatKTzf0k67VfBng0sg-M3YvU";
+const TODAY_PUSH_DEVICE_KEY = "todayPushDeviceId";
+const TODAY_PUSH_ENABLED_KEY = "todayPushEnabled";
+let pushScheduleSyncTimer = null;
 
 
 function safeStorageGet(key, fallback = null) {
@@ -282,6 +287,21 @@ let todayReloadingForUpdate = false;
 
     const translations = {
         en: {
+            "pushStatusUnavailable": "Push notifications: unavailable",
+            "pushStatusInstallFirst": "Push notifications: install Today first on iPhone",
+            "pushStatusBlocked": "Push notifications: blocked",
+            "pushStatusReady": "Push notifications: enabled",
+            "pushStatusOptional": "Push notifications: optional",
+            "pushStatusSettingUp": "Push notifications: setting up…",
+            "pushNote": "Push reminders can arrive even when Today is closed.",
+            "pushEnable": "Enable",
+            "pushTest": "Send test",
+            "pushTestQueued": "Test notification sent. It should arrive shortly.",
+            "pushSetupFailed": "I couldn't enable push notifications yet.",
+            "pushNeedsStorage": "Push notifications need the same private Vercel Blob store used by Cloud Sync.",
+            "pushNeedsServerKey": "Push notifications need the VAPID private key added in Vercel.",
+            "pushScheduleFailed": "Reminder push schedule could not be updated.",
+
             "cloudSync": "Cloud Sync",
             "cloudSyncDesc": "Keep this Today data synced across your devices",
             "cloudLocalOnly": "Local only",
@@ -612,6 +632,21 @@ let todayReloadingForUpdate = false;
             overdue: "Overdue"
         },
         lt: {
+            "pushStatusUnavailable": "Push pranešimai: nepasiekiami",
+            "pushStatusInstallFirst": "Push pranešimai: iPhone pirmiausia įdiek Today",
+            "pushStatusBlocked": "Push pranešimai: užblokuoti",
+            "pushStatusReady": "Push pranešimai: įjungti",
+            "pushStatusOptional": "Push pranešimai: pasirinktiniai",
+            "pushStatusSettingUp": "Push pranešimai: nustatoma…",
+            "pushNote": "Push priminimai gali atkeliauti net kai Today uždaryta.",
+            "pushEnable": "Įjungti",
+            "pushTest": "Siųsti testą",
+            "pushTestQueued": "Testinis pranešimas išsiųstas. Jis turėtų netrukus atkeliauti.",
+            "pushSetupFailed": "Kol kas nepavyko įjungti push pranešimų.",
+            "pushNeedsStorage": "Push pranešimams reikia tos pačios privačios Vercel Blob saugyklos kaip Cloud Sync.",
+            "pushNeedsServerKey": "Vercel aplinkoje reikia pridėti privatų VAPID raktą.",
+            "pushScheduleFailed": "Nepavyko atnaujinti push priminimų tvarkaraščio.",
+
             "cloudSync": "Debesų sinchronizacija",
             "cloudSyncDesc": "Sinchronizuok šiuos Today duomenis tarp savo įrenginių",
             "cloudLocalOnly": "Tik šiame įrenginyje",
@@ -942,6 +977,21 @@ let todayReloadingForUpdate = false;
             overdue: "Pavėluota"
         },
         es: {
+            "pushStatusUnavailable": "Notificaciones push: no disponibles",
+            "pushStatusInstallFirst": "Notificaciones push: instala Today primero en iPhone",
+            "pushStatusBlocked": "Notificaciones push: bloqueadas",
+            "pushStatusReady": "Notificaciones push: activadas",
+            "pushStatusOptional": "Notificaciones push: opcionales",
+            "pushStatusSettingUp": "Notificaciones push: configurando…",
+            "pushNote": "Los recordatorios push pueden llegar incluso cuando Today está cerrado.",
+            "pushEnable": "Activar",
+            "pushTest": "Enviar prueba",
+            "pushTestQueued": "Notificación de prueba enviada. Debería llegar en breve.",
+            "pushSetupFailed": "Todavía no pude activar las notificaciones push.",
+            "pushNeedsStorage": "Las notificaciones push necesitan el mismo Vercel Blob privado que Cloud Sync.",
+            "pushNeedsServerKey": "Falta añadir la clave VAPID privada en Vercel.",
+            "pushScheduleFailed": "No se pudo actualizar el horario de recordatorios push.",
+
             "cloudSync": "Sincronización en la nube",
             "cloudSyncDesc": "Mantén estos datos de Today sincronizados entre tus dispositivos",
             "cloudLocalOnly": "Solo local",
@@ -1389,6 +1439,9 @@ let todayReloadingForUpdate = false;
         setText("accentSettingDescription", t("accentDesc"));
         setText("remindersSettingTitle", t("reminders"));
         setText("remindersSettingDescription", t("remindersDesc"));
+        setText("pushNotificationNote", t("pushNote"));
+        setText("notificationEnableButton", t("pushEnable"));
+        setText("notificationTestButton", t("pushTest"));
         setText("dataSettingTitle", t("data"));
         setText("dataSettingDescription", t("dataDesc"));
         setText("cloudSyncTitle", t("cloudSync"));
@@ -3543,38 +3596,219 @@ let todayReloadingForUpdate = false;
         }
     }
 
-    function updateNotificationStatus() {
+    function isPushIosDevice() {
+        return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+            (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    }
+
+    function isInstalledTodayApp() {
+        return window.matchMedia?.("(display-mode: standalone)")?.matches ||
+            window.navigator.standalone === true;
+    }
+
+    function pushNotificationsSupported() {
+        return "Notification" in window &&
+            "serviceWorker" in navigator &&
+            "PushManager" in window &&
+            location.protocol === "https:";
+    }
+
+    function getPushDeviceId() {
+        let value = safeStorageGet(TODAY_PUSH_DEVICE_KEY);
+        if (!value) {
+            const bytes = new Uint8Array(18);
+            crypto.getRandomValues(bytes);
+            value = Array.from(bytes).map(byte => byte.toString(16).padStart(2, "0")).join("");
+            safeStorageSet(TODAY_PUSH_DEVICE_KEY, value);
+        }
+        return value;
+    }
+
+    function urlBase64ToUint8Array(value) {
+        const padding = "=".repeat((4 - value.length % 4) % 4);
+        const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
+        const raw = atob(base64);
+        return Uint8Array.from([...raw].map(char => char.charCodeAt(0)));
+    }
+
+    async function getTodayPushSubscription() {
+        if (!pushNotificationsSupported()) return null;
+        try {
+            const registration = await navigator.serviceWorker.ready;
+            return await registration.pushManager.getSubscription();
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function buildPushReminderSchedule() {
+        const now = Date.now();
+        return tasks
+            .filter(task => !task.archived && !task.completed)
+            .map(task => {
+                const reminderDate = getReminderDateTime(task);
+                if (!reminderDate) return null;
+                return { key: getReminderKey(task), at: reminderDate.getTime() };
+            })
+            .filter(Boolean)
+            .filter(reminder => reminder.at > now - 60 * 1000)
+            .sort((a,b) => a.at - b.at);
+    }
+
+    async function postPushSchedule(subscription) {
+        if (!subscription) return { ok:false };
+        const response = await fetch("/api/push/schedule", {
+            method:"POST",
+            headers:{"Content-Type":"application/json","Accept":"application/json"},
+            body:JSON.stringify({
+                deviceId:getPushDeviceId(),
+                subscription:subscription.toJSON(),
+                reminders:buildPushReminderSchedule()
+            })
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            const error = new Error(body?.error || `push_${response.status}`);
+            error.status = response.status;
+            error.body = body;
+            throw error;
+        }
+        safeStorageSet(TODAY_PUSH_ENABLED_KEY,"true");
+        return body;
+    }
+
+    async function syncPushReminderSchedule(showErrors=false) {
+        if (safeStorageGet(TODAY_PUSH_ENABLED_KEY) !== "true" || !pushNotificationsSupported()) return;
+        try {
+            const subscription = await getTodayPushSubscription();
+            if (!subscription) {
+                safeStorageRemove(TODAY_PUSH_ENABLED_KEY);
+                updateNotificationStatus();
+                return;
+            }
+            await postPushSchedule(subscription);
+        } catch (error) {
+            console.error("Today push schedule sync failed", error);
+            if (showErrors) {
+                if (error?.body?.error === "storage_not_configured") alert(t("pushNeedsStorage"));
+                else if (error?.body?.error === "vapid_not_configured") alert(t("pushNeedsServerKey"));
+                else alert(t("pushScheduleFailed"));
+            }
+        }
+    }
+
+    function queuePushScheduleSync() {
+        clearTimeout(pushScheduleSyncTimer);
+        if (safeStorageGet(TODAY_PUSH_ENABLED_KEY) !== "true") return;
+        pushScheduleSyncTimer = setTimeout(() => syncPushReminderSchedule(false),700);
+    }
+
+    async function updateNotificationStatus() {
         const status = document.getElementById("notificationStatus");
+        const enableButton = document.getElementById("notificationEnableButton");
+        const testButton = document.getElementById("notificationTestButton");
         if (!status) return;
 
-        if (!("Notification" in window)) {
-            status.textContent = t("browserNotificationsUnavailable");
+        if (!pushNotificationsSupported()) {
+            status.textContent = t("pushStatusUnavailable");
+            if (enableButton) enableButton.hidden = true;
+            if (testButton) testButton.hidden = true;
             return;
         }
 
-        if (Notification.permission === "granted") {
-            status.textContent = t("browserNotificationsEnabled");
-        } else if (Notification.permission === "denied") {
-            status.textContent = t("browserNotificationsBlocked");
+        if (isPushIosDevice() && !isInstalledTodayApp()) {
+            status.textContent = t("pushStatusInstallFirst");
+            if (enableButton) enableButton.hidden = false;
+            if (testButton) testButton.hidden = true;
+            return;
+        }
+
+        if (Notification.permission === "denied") {
+            status.textContent = t("pushStatusBlocked");
+            if (enableButton) enableButton.hidden = true;
+            if (testButton) testButton.hidden = true;
+            return;
+        }
+
+        const subscription = await getTodayPushSubscription();
+        if (Notification.permission === "granted" && subscription && safeStorageGet(TODAY_PUSH_ENABLED_KEY) === "true") {
+            status.textContent = t("pushStatusReady");
+            if (enableButton) enableButton.hidden = true;
+            if (testButton) testButton.hidden = false;
         } else {
-            status.textContent = t("browserNotificationsOptional");
+            status.textContent = t("pushStatusOptional");
+            if (enableButton) enableButton.hidden = false;
+            if (testButton) testButton.hidden = true;
         }
     }
 
     async function enableBrowserNotifications() {
-        if (!("Notification" in window)) {
+        if (!pushNotificationsSupported()) {
             updateNotificationStatus();
-            alert("This browser doesn't support notifications here. In-app reminders will still work.");
+            alert(t("pushStatusUnavailable"));
+            return;
+        }
+
+        if (isPushIosDevice() && !isInstalledTodayApp()) {
+            updateNotificationStatus();
+            alert(t("pushStatusInstallFirst"));
+            return;
+        }
+
+        const status = document.getElementById("notificationStatus");
+        if (status) status.textContent = t("pushStatusSettingUp");
+
+        try {
+            const permission = await Notification.requestPermission();
+            if (permission !== "granted") {
+                updateNotificationStatus();
+                return;
+            }
+
+            const registration = await navigator.serviceWorker.ready;
+            let subscription = await registration.pushManager.getSubscription();
+            if (!subscription) {
+                subscription = await registration.pushManager.subscribe({
+                    userVisibleOnly:true,
+                    applicationServerKey:urlBase64ToUint8Array(TODAY_PUSH_VAPID_PUBLIC_KEY)
+                });
+            }
+
+            await postPushSchedule(subscription);
+            await updateNotificationStatus();
+        } catch (error) {
+            console.error("Today push setup failed", error);
+            if (error?.body?.error === "storage_not_configured") alert(t("pushNeedsStorage"));
+            else if (error?.body?.error === "vapid_not_configured") alert(t("pushNeedsServerKey"));
+            else alert(t("pushSetupFailed"));
+            await updateNotificationStatus();
+        }
+    }
+
+    async function sendTestPushNotification() {
+        const subscription = await getTodayPushSubscription();
+        if (!subscription) {
+            await enableBrowserNotifications();
             return;
         }
 
         try {
-            await Notification.requestPermission();
+            const response = await fetch("/api/push/test", {
+                method:"POST",
+                headers:{"Content-Type":"application/json","Accept":"application/json"},
+                body:JSON.stringify({deviceId:getPushDeviceId(),subscription:subscription.toJSON()})
+            });
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                const error = new Error(body?.error || `push_${response.status}`);
+                error.body = body;
+                throw error;
+            }
+            alert(t("pushTestQueued"));
         } catch (error) {
-            // Some local-file/browser combinations do not allow notification requests.
+            if (error?.body?.error === "vapid_not_configured") alert(t("pushNeedsServerKey"));
+            else alert(t("pushSetupFailed"));
         }
-
-        updateNotificationStatus();
     }
 
     function getReminderDateTime(task) {
@@ -3650,6 +3884,7 @@ let todayReloadingForUpdate = false;
             if (
                 "Notification" in window &&
                 Notification.permission === "granted" &&
+                safeStorageGet(TODAY_PUSH_ENABLED_KEY) !== "true" &&
                 !notified[key]
             ) {
                 try {
@@ -5293,6 +5528,7 @@ renderSchedule();
     // Save tasks
     function saveTasks() {
         safeStorageSet("tasks", JSON.stringify(tasks));
+        queuePushScheduleSync();
     }
 
     // Progress
@@ -6241,4 +6477,11 @@ const assetLoadWarning = document.getElementById("assetLoadWarning");
 if (assetLoadWarning) assetLoadWarning.remove();
 
 initializeCloudSync();
+
+window.addEventListener("load", () => {
+    setTimeout(() => {
+        updateNotificationStatus();
+        syncPushReminderSchedule(false);
+    }, 1400);
+});
 
