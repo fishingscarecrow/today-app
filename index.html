@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta name="today-build" content="settings-scroll-fix-v1">
+    <meta name="today-build" content="push-notifications-v1">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Today</title>
@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon-180.png">
 
-    <link rel="stylesheet" href="./styles.css?v=settings-scroll-v1">
+    <link rel="stylesheet" href="./styles.css?v=push-notifications-v1">
 
 </head>
 
@@ -94,13 +94,20 @@
             </div>
         </div>
 
-        <div class="setting-item">
+        <div class="setting-item push-notification-setting">
             <div>
                 <strong id="remindersSettingTitle">Reminders</strong>
                 <p id="remindersSettingDescription">In-app reminders work automatically</p>
-                <span class="notification-status" id="notificationStatus">Browser notifications: checking…</span>
+                <span class="notification-status" id="notificationStatus">Notifications: checking…</span>
+                <p class="push-notification-note" id="pushNotificationNote">
+                    Push reminders can arrive even when Today is closed.
+                </p>
             </div>
-            <button class="settings-mini-button" type="button" onclick="enableBrowserNotifications()" data-i18n="enable">Enable</button>
+
+            <div class="push-notification-actions">
+                <button id="notificationEnableButton" class="settings-mini-button" type="button" onclick="enableBrowserNotifications()">Enable</button>
+                <button id="notificationTestButton" class="settings-mini-button" type="button" onclick="sendTestPushNotification()" hidden>Send test</button>
+            </div>
         </div>
 
         <div class="setting-item">
@@ -949,6 +956,6 @@
 
 
 
-    <script src="./app.js"></script>
+    <script src="./app.js?v=push-notifications-v1"></script>
 </body>
 </html>
