@@ -1,15 +1,11 @@
-const CACHE_NAME = "today-pwa-final-polish-v1";
+const CACHE_NAME = "today-pwa-online-launch-v1";
 
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css",
-  "./app.js",
   "./manifest.webmanifest",
   "./offline.html",
-  "./icons/icon-180.png",
-  "./icons/icon-192.png",
-  "./icons/icon-512.png"
+  "./icons/icon.svg"
 ];
 
 self.addEventListener("install", event => {
@@ -28,7 +24,6 @@ self.addEventListener("activate", event => {
       )
     )
   );
-
   self.clients.claim();
 });
 
@@ -40,12 +35,10 @@ self.addEventListener("message", event => {
 
 self.addEventListener("fetch", event => {
   const request = event.request;
-
   if (request.method !== "GET") return;
 
   const url = new URL(request.url);
 
-  // Weather stays network-first.
   if (url.hostname.includes("open-meteo.com")) {
     event.respondWith(
       fetch(request).catch(() =>
@@ -58,28 +51,22 @@ self.addEventListener("fetch", event => {
     return;
   }
 
-  // Navigation is network-first so new deployments are picked up promptly.
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
         .then(response => {
           const copy = response.clone();
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put("./index.html", copy);
-          });
+          caches.open(CACHE_NAME).then(cache => cache.put("./index.html", copy));
           return response;
         })
-        .catch(async () => {
-          return (
-            await caches.match("./index.html") ||
-            await caches.match("./offline.html")
-          );
-        })
+        .catch(async () =>
+          (await caches.match("./index.html")) ||
+          (await caches.match("./offline.html"))
+        )
     );
     return;
   }
 
-  // Static same-origin assets use stale-while-revalidate.
   if (url.origin === self.location.origin) {
     event.respondWith(
       caches.match(request).then(cached => {
@@ -92,7 +79,6 @@ self.addEventListener("fetch", event => {
             return response;
           })
           .catch(() => cached);
-
         return cached || network;
       })
     );
