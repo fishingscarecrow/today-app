@@ -4619,6 +4619,16 @@ body.dark .danger-lite{color:#fca5a5}
 @media(max-width:680px){.cloud-sync-setting{gap:12px}.cloud-sync-actions{width:100%;max-width:none;justify-content:stretch}.cloud-sync-actions button{flex:1 1 120px}.cloud-sync-code-box{grid-template-columns:1fr auto}.cloud-sync-code-box>span{grid-column:1/-1}}
 @media(prefers-reduced-motion:reduce){.cloud-sync-dot.busy{animation:none}}
 
+
+/* WELCOME HOTFIX V1 */
+.today-start-fallback{position:absolute;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none}
+.welcome-screen{z-index:2147483000!important;pointer-events:auto!important}
+.welcome-screen.hidden,#todayStartFallback:target~.welcome-screen{opacity:0!important;visibility:hidden!important;pointer-events:none!important}
+.welcome-box{position:relative;z-index:2;pointer-events:auto}
+.welcome-box .welcome-start-button{position:relative;z-index:3;display:inline-flex;align-items:center;justify-content:center;border:none;border-radius:12px;padding:13px 24px;font-size:16px;font-weight:600;cursor:pointer;background:#1d1d1f;color:white;text-decoration:none;transition:transform .2s ease;pointer-events:auto!important;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.welcome-box .welcome-start-button:hover{transform:translateY(-2px)}
+.welcome-box .welcome-start-button:focus-visible{outline:3px solid var(--accent,#71717a);outline-offset:3px}
+
 </style>
 
 </head>
@@ -4634,6 +4644,7 @@ body.dark .danger-lite{color:#fca5a5}
     If Today looks unstyled, extract the whole ZIP first or open <strong>OPEN-TODAY.html</strong>.
 </div>
 
+<span id="todayStartFallback" class="today-start-fallback" aria-hidden="true"></span>
 <div id="welcomeScreen" class="welcome-screen">
 
     <div class="decor decor-one"></div>
@@ -4647,7 +4658,7 @@ body.dark .danger-lite{color:#fca5a5}
 
         <p>Your day, all in one place.</p>
 
-        <button onclick="startToday()">Let's go →</button>
+        <a href="#todayStartFallback" id="welcomeStartButton" class="welcome-start-button" role="button">Let's go →</a>
     </div>
 
 </div>
@@ -5522,12 +5533,39 @@ body.dark .danger-lite{color:#fca5a5}
     <script>
 /* Today — application logic */
 
-const TODAY_APP_VERSION = "cloud-sync-v1";
+const TODAY_APP_VERSION = "welcome-hotfix-v1";
 const TODAY_DATA_VERSION = 5;
+
+
+function safeStorageGet(key, fallback = null) {
+    try {
+        const value = window.localStorage.getItem(key);
+        return value === null ? fallback : value;
+    } catch (error) {
+        return fallback;
+    }
+}
+function safeStorageSet(key, value) {
+    try {
+        window.localStorage.setItem(key, String(value));
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
+function safeStorageRemove(key) {
+    try {
+        window.localStorage.removeItem(key);
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
+
 
 function safeReadJSON(key, fallback) {
     try {
-        const raw = localStorage.getItem(key);
+        const raw = safeStorageGet(key);
         if (!raw) return fallback;
 
         const parsed = JSON.parse(raw);
@@ -5553,23 +5591,23 @@ if (!dailyNotes || typeof dailyNotes !== "object" || Array.isArray(dailyNotes)) 
     dailyNotes = {};
 }
 
-let currentTaskFilter = localStorage.getItem("taskFilter") || "all";
-let currentProjectFilter = localStorage.getItem("projectFilter") || "all";
+let currentTaskFilter = safeStorageGet("taskFilter") || "all";
+let currentProjectFilter = safeStorageGet("projectFilter") || "all";
 
 let activityHistory = safeReadJSON("activityHistory", {});
 if (!activityHistory || typeof activityHistory !== "object" || Array.isArray(activityHistory)) {
     activityHistory = {};
 }
 
-let dailyGoal = Math.max(1, Number(localStorage.getItem("dailyGoal")) || 3);
-let accentColor = localStorage.getItem("accentColor") || "graphite";
+let dailyGoal = Math.max(1, Number(safeStorageGet("dailyGoal")) || 3);
+let accentColor = safeStorageGet("accentColor") || "graphite";
 let editingTaskIndex = null;
 let editingEventIndex = null;
 let currentReminderNoticeKey = "";
 let reminderCheckTimer = null;
-let selectedCalendarDate = localStorage.getItem("selectedCalendarDate") || getDateKey();
-let appLanguage = localStorage.getItem("appLanguage") || "en";
-let calendarView = localStorage.getItem("calendarView") || "week";
+let selectedCalendarDate = safeStorageGet("selectedCalendarDate") || getDateKey();
+let appLanguage = safeStorageGet("appLanguage") || "en";
+let calendarView = safeStorageGet("calendarView") || "week";
 let deferredInstallPrompt = null;
 let onboardingStep = 0;
 let controlTourIndex = 0;
@@ -5686,7 +5724,7 @@ let todayReloadingForUpdate = false;
             .filter(task => task.text.length > 0);
 
         if (tasksChanged) {
-            localStorage.setItem("tasks", JSON.stringify(tasks));
+            safeStorageSet("tasks", JSON.stringify(tasks));
         }
 
         let eventsChanged = false;
@@ -5742,7 +5780,7 @@ let todayReloadingForUpdate = false;
             .filter(event => event.name.length > 0);
 
         if (eventsChanged) {
-            localStorage.setItem("events", JSON.stringify(events));
+            safeStorageSet("events", JSON.stringify(events));
         }
 
         Object.keys(activityHistory).forEach(key => {
@@ -5755,23 +5793,23 @@ let todayReloadingForUpdate = false;
             }
         });
 
-        localStorage.setItem("activityHistory", JSON.stringify(activityHistory));
-        localStorage.setItem("projects", JSON.stringify(projects));
+        safeStorageSet("activityHistory", JSON.stringify(activityHistory));
+        safeStorageSet("projects", JSON.stringify(projects));
 
-        const legacyNotes = localStorage.getItem("notes");
+        const legacyNotes = safeStorageGet("notes");
         const todayForLegacyNotes = getDateKey();
 
         if (
             legacyNotes &&
             !dailyNotes[todayForLegacyNotes] &&
-            localStorage.getItem("dailyNotesMigrated") !== "true"
+            safeStorageGet("dailyNotesMigrated") !== "true"
         ) {
             dailyNotes[todayForLegacyNotes] = legacyNotes;
-            localStorage.setItem("dailyNotes", JSON.stringify(dailyNotes));
-            localStorage.setItem("dailyNotesMigrated", "true");
+            safeStorageSet("dailyNotes", JSON.stringify(dailyNotes));
+            safeStorageSet("dailyNotesMigrated", "true");
         }
 
-        localStorage.setItem("todayDataVersion", String(TODAY_DATA_VERSION));
+        safeStorageSet("todayDataVersion", String(TODAY_DATA_VERSION));
     }
 
     const translations = {
@@ -6865,7 +6903,7 @@ let todayReloadingForUpdate = false;
     function setLanguage(language) {
         const allowed = ["en", "lt", "es"];
         appLanguage = allowed.includes(language) ? language : "en";
-        localStorage.setItem("appLanguage", appLanguage);
+        safeStorageSet("appLanguage", appLanguage);
 
         document.documentElement.lang = appLanguage;
 
@@ -7109,7 +7147,7 @@ let todayReloadingForUpdate = false;
     }
 
     function saveActivityHistory() {
-        localStorage.setItem("activityHistory", JSON.stringify(activityHistory));
+        safeStorageSet("activityHistory", JSON.stringify(activityHistory));
     }
 
     function recordCompletion(task) {
@@ -7209,7 +7247,7 @@ let todayReloadingForUpdate = false;
 
         dailyGoal = value;
         input.value = value;
-        localStorage.setItem("dailyGoal", String(dailyGoal));
+        safeStorageSet("dailyGoal", String(dailyGoal));
 
         updateDailyGoal();
     }
@@ -7314,11 +7352,11 @@ let todayReloadingForUpdate = false;
         if (completedToday < dailyGoal) return;
 
         const today = getDateKey();
-        const celebratedDate = localStorage.getItem("goalCelebratedDate");
+        const celebratedDate = safeStorageGet("goalCelebratedDate");
 
         if (celebratedDate === today) return;
 
-        localStorage.setItem("goalCelebratedDate", today);
+        safeStorageSet("goalCelebratedDate", today);
 
         const celebration = document.getElementById("goalCelebration");
         if (!celebration) return;
@@ -7707,7 +7745,7 @@ let todayReloadingForUpdate = false;
         });
 
         if (changed) {
-            localStorage.setItem("tasks", JSON.stringify(tasks));
+            safeStorageSet("tasks", JSON.stringify(tasks));
         }
     }
 
@@ -7764,7 +7802,7 @@ let todayReloadingForUpdate = false;
     }
 
     function saveProjects() {
-        localStorage.setItem("projects", JSON.stringify(projects));
+        safeStorageSet("projects", JSON.stringify(projects));
     }
 
     function fillProjectSelect(select, includeAll = false) {
@@ -7851,7 +7889,7 @@ let todayReloadingForUpdate = false;
 
     function setProjectFilter(value) {
         currentProjectFilter = value || "all";
-        localStorage.setItem("projectFilter", currentProjectFilter);
+        safeStorageSet("projectFilter", currentProjectFilter);
         renderTasks();
     }
 
@@ -8056,7 +8094,7 @@ let todayReloadingForUpdate = false;
             sortEvents();
             saveEvents();
             selectedCalendarDate = parsed.date;
-            localStorage.setItem("selectedCalendarDate", selectedCalendarDate);
+            safeStorageSet("selectedCalendarDate", selectedCalendarDate);
 
             renderSchedule();
             renderCalendarWeek();
@@ -8238,10 +8276,10 @@ let todayReloadingForUpdate = false;
     }
 
     function getCloudDeviceId() {
-        let id = localStorage.getItem(TODAY_CLOUD_DEVICE_KEY);
+        let id = safeStorageGet(TODAY_CLOUD_DEVICE_KEY);
         if (!id) {
             id = createLocalId("device");
-            localStorage.setItem(TODAY_CLOUD_DEVICE_KEY, id);
+            safeStorageSet(TODAY_CLOUD_DEVICE_KEY, id);
         }
         return id;
     }
@@ -8342,7 +8380,7 @@ let todayReloadingForUpdate = false;
     }
 
     function updateCloudSyncUI() {
-        const code=localStorage.getItem(TODAY_CLOUD_CODE_KEY)||"";
+        const code=safeStorageGet(TODAY_CLOUD_CODE_KEY)||"";
         const connected=Boolean(code);
         const box=document.getElementById("cloudSyncCodeBox");
         const text=document.getElementById("cloudSyncCodeText");
@@ -8381,9 +8419,9 @@ let todayReloadingForUpdate = false;
         const encrypted=await encryptCloudSnapshot(code,snapshot);
         const updatedAt=Date.now();
         await cloudApiRequest("POST",syncId,{...encrypted,updatedAt,deviceId:getCloudDeviceId(),schemaVersion:TODAY_DATA_VERSION});
-        localStorage.setItem(TODAY_CLOUD_LAST_SYNCED_KEY,fingerprint);
-        localStorage.setItem(TODAY_CLOUD_LAST_REMOTE_KEY,String(updatedAt));
-        localStorage.setItem(TODAY_CLOUD_LOCAL_CHANGED_KEY,String(updatedAt));
+        safeStorageSet(TODAY_CLOUD_LAST_SYNCED_KEY,fingerprint);
+        safeStorageSet(TODAY_CLOUD_LAST_REMOTE_KEY,String(updatedAt));
+        safeStorageSet(TODAY_CLOUD_LOCAL_CHANGED_KEY,String(updatedAt));
         cloudSyncLastSeenFingerprint=fingerprint;
         return {fingerprint,updatedAt};
     }
@@ -8397,24 +8435,24 @@ let todayReloadingForUpdate = false;
 
     function applyCloudSnapshot(snapshot){
         if(!snapshot||!Array.isArray(snapshot.tasks)||!Array.isArray(snapshot.events))throw new Error("invalid_snapshot");
-        localStorage.setItem("tasks",JSON.stringify(snapshot.tasks));
-        localStorage.setItem("events",JSON.stringify(snapshot.events));
-        localStorage.setItem("projects",JSON.stringify(Array.isArray(snapshot.projects)?snapshot.projects:projects));
-        localStorage.setItem("dailyNotes",JSON.stringify(snapshot.dailyNotes&&typeof snapshot.dailyNotes==="object"?snapshot.dailyNotes:{}));
-        localStorage.setItem("activityHistory",JSON.stringify(snapshot.activityHistory&&typeof snapshot.activityHistory==="object"?snapshot.activityHistory:{}));
-        localStorage.setItem("dailyGoal",String(Math.max(1,Number(snapshot.dailyGoal)||3)));
-        localStorage.setItem("accentColor",String(snapshot.accentColor||"graphite"));
-        localStorage.setItem("appLanguage",["en","lt","es"].includes(snapshot.appLanguage)?snapshot.appLanguage:appLanguage);
-        localStorage.setItem("darkMode",snapshot.darkMode?"true":"false");
-        localStorage.setItem("taskFilter",String(snapshot.taskFilter||"all"));
-        localStorage.setItem("projectFilter",String(snapshot.projectFilter||"all"));
+        safeStorageSet("tasks",JSON.stringify(snapshot.tasks));
+        safeStorageSet("events",JSON.stringify(snapshot.events));
+        safeStorageSet("projects",JSON.stringify(Array.isArray(snapshot.projects)?snapshot.projects:projects));
+        safeStorageSet("dailyNotes",JSON.stringify(snapshot.dailyNotes&&typeof snapshot.dailyNotes==="object"?snapshot.dailyNotes:{}));
+        safeStorageSet("activityHistory",JSON.stringify(snapshot.activityHistory&&typeof snapshot.activityHistory==="object"?snapshot.activityHistory:{}));
+        safeStorageSet("dailyGoal",String(Math.max(1,Number(snapshot.dailyGoal)||3)));
+        safeStorageSet("accentColor",String(snapshot.accentColor||"graphite"));
+        safeStorageSet("appLanguage",["en","lt","es"].includes(snapshot.appLanguage)?snapshot.appLanguage:appLanguage);
+        safeStorageSet("darkMode",snapshot.darkMode?"true":"false");
+        safeStorageSet("taskFilter",String(snapshot.taskFilter||"all"));
+        safeStorageSet("projectFilter",String(snapshot.projectFilter||"all"));
     }
 
     async function createCloudSync(){
         if(!cloudSyncSupportedHere()){alert(t("cloudOnlineOnly"));return;}
         if(!window.crypto?.subtle){setCloudSyncStatus("error",t("cloudError"));return;}
         const code=generateCloudCode();
-        localStorage.setItem(TODAY_CLOUD_CODE_KEY,code);
+        safeStorageSet(TODAY_CLOUD_CODE_KEY,code);
         updateCloudSyncUI();
         cloudSyncInFlight=true;setCloudSyncStatus("busy",t("cloudSyncing"));
         try{await pushCloudSnapshot(code);alert(t("cloudCreatedMessage"));}
@@ -8431,12 +8469,12 @@ let todayReloadingForUpdate = false;
         try{
             const remote=await fetchCloudSnapshot(code);
             if(!confirm(t("cloudConnectConfirm")))return;
-            localStorage.setItem(TODAY_CLOUD_CODE_KEY,code);
+            safeStorageSet(TODAY_CLOUD_CODE_KEY,code);
             applyCloudSnapshot(remote.snapshot);
             const fp=await cloudFingerprint(remote.snapshot);
-            localStorage.setItem(TODAY_CLOUD_LAST_SYNCED_KEY,fp);
-            localStorage.setItem(TODAY_CLOUD_LAST_REMOTE_KEY,String(Number(remote.payload.updatedAt)||Date.now()));
-            localStorage.setItem(TODAY_CLOUD_LOCAL_CHANGED_KEY,String(Number(remote.payload.updatedAt)||Date.now()));
+            safeStorageSet(TODAY_CLOUD_LAST_SYNCED_KEY,fp);
+            safeStorageSet(TODAY_CLOUD_LAST_REMOTE_KEY,String(Number(remote.payload.updatedAt)||Date.now()));
+            safeStorageSet(TODAY_CLOUD_LOCAL_CHANGED_KEY,String(Number(remote.payload.updatedAt)||Date.now()));
             location.reload();
         }catch(error){
             if(error.message==="decrypt_failed")alert(t("cloudDecryptionError"));
@@ -8447,7 +8485,7 @@ let todayReloadingForUpdate = false;
     }
 
     async function copyCloudSyncCode(){
-        const code=localStorage.getItem(TODAY_CLOUD_CODE_KEY);if(!code)return;
+        const code=safeStorageGet(TODAY_CLOUD_CODE_KEY);if(!code)return;
         try{
             await navigator.clipboard.writeText(formatCloudCode(code));
             const button=document.getElementById("cloudCopyButton");
@@ -8457,18 +8495,18 @@ let todayReloadingForUpdate = false;
 
     function disconnectCloudSync(){
         if(!confirm(t("cloudDisconnectConfirm")))return;
-        [TODAY_CLOUD_CODE_KEY,TODAY_CLOUD_LAST_SYNCED_KEY,TODAY_CLOUD_LAST_REMOTE_KEY,TODAY_CLOUD_LOCAL_CHANGED_KEY].forEach(k=>localStorage.removeItem(k));
+        [TODAY_CLOUD_CODE_KEY,TODAY_CLOUD_LAST_SYNCED_KEY,TODAY_CLOUD_LAST_REMOTE_KEY,TODAY_CLOUD_LOCAL_CHANGED_KEY].forEach(k=>safeStorageRemove(k));
         cloudSyncLastSeenFingerprint="";cloudSyncStorageUnavailable=false;updateCloudSyncUI();
     }
 
     async function syncCloudNow(showErrors=false){
-        const code=localStorage.getItem(TODAY_CLOUD_CODE_KEY);
+        const code=safeStorageGet(TODAY_CLOUD_CODE_KEY);
         if(!code||!cloudSyncSupportedHere()||cloudSyncInFlight){updateCloudSyncUI();return;}
         cloudSyncInFlight=true;setCloudSyncStatus("busy",t("cloudSyncing"));
         try{
             const snapshot=buildCloudSnapshot();
             const localFingerprint=await cloudFingerprint(snapshot);
-            if(cloudSyncLastSeenFingerprint&&localFingerprint!==cloudSyncLastSeenFingerprint)localStorage.setItem(TODAY_CLOUD_LOCAL_CHANGED_KEY,String(Date.now()));
+            if(cloudSyncLastSeenFingerprint&&localFingerprint!==cloudSyncLastSeenFingerprint)safeStorageSet(TODAY_CLOUD_LOCAL_CHANGED_KEY,String(Date.now()));
             cloudSyncLastSeenFingerprint=localFingerprint;
 
             let remote;
@@ -8476,13 +8514,13 @@ let todayReloadingForUpdate = false;
             catch(error){if(error.status===404){await pushCloudSnapshot(code,snapshot);return;}throw error;}
 
             const remoteFingerprint=await cloudFingerprint(remote.snapshot);
-            const lastSynced=localStorage.getItem(TODAY_CLOUD_LAST_SYNCED_KEY)||"";
+            const lastSynced=safeStorageGet(TODAY_CLOUD_LAST_SYNCED_KEY)||"";
             const remoteUpdatedAt=Number(remote.payload.updatedAt)||0;
-            const localChangedAt=Number(localStorage.getItem(TODAY_CLOUD_LOCAL_CHANGED_KEY))||0;
+            const localChangedAt=Number(safeStorageGet(TODAY_CLOUD_LOCAL_CHANGED_KEY))||0;
 
             if(remoteFingerprint===localFingerprint){
-                localStorage.setItem(TODAY_CLOUD_LAST_SYNCED_KEY,localFingerprint);
-                localStorage.setItem(TODAY_CLOUD_LAST_REMOTE_KEY,String(remoteUpdatedAt));
+                safeStorageSet(TODAY_CLOUD_LAST_SYNCED_KEY,localFingerprint);
+                safeStorageSet(TODAY_CLOUD_LAST_REMOTE_KEY,String(remoteUpdatedAt));
                 return;
             }
 
@@ -8491,9 +8529,9 @@ let todayReloadingForUpdate = false;
 
             if(remoteChanged&&!localChanged){
                 applyCloudSnapshot(remote.snapshot);
-                localStorage.setItem(TODAY_CLOUD_LAST_SYNCED_KEY,remoteFingerprint);
-                localStorage.setItem(TODAY_CLOUD_LAST_REMOTE_KEY,String(remoteUpdatedAt));
-                localStorage.setItem(TODAY_CLOUD_LOCAL_CHANGED_KEY,String(remoteUpdatedAt));
+                safeStorageSet(TODAY_CLOUD_LAST_SYNCED_KEY,remoteFingerprint);
+                safeStorageSet(TODAY_CLOUD_LAST_REMOTE_KEY,String(remoteUpdatedAt));
+                safeStorageSet(TODAY_CLOUD_LOCAL_CHANGED_KEY,String(remoteUpdatedAt));
                 showPwaStatus(t("cloudUpdatedFromOtherDevice"),1800);
                 setTimeout(()=>location.reload(),500);
                 return;
@@ -8503,9 +8541,9 @@ let todayReloadingForUpdate = false;
 
             if(remoteUpdatedAt>localChangedAt){
                 applyCloudSnapshot(remote.snapshot);
-                localStorage.setItem(TODAY_CLOUD_LAST_SYNCED_KEY,remoteFingerprint);
-                localStorage.setItem(TODAY_CLOUD_LAST_REMOTE_KEY,String(remoteUpdatedAt));
-                localStorage.setItem(TODAY_CLOUD_LOCAL_CHANGED_KEY,String(remoteUpdatedAt));
+                safeStorageSet(TODAY_CLOUD_LAST_SYNCED_KEY,remoteFingerprint);
+                safeStorageSet(TODAY_CLOUD_LAST_REMOTE_KEY,String(remoteUpdatedAt));
+                safeStorageSet(TODAY_CLOUD_LOCAL_CHANGED_KEY,String(remoteUpdatedAt));
                 showPwaStatus(t("cloudUpdatedFromOtherDevice"),1800);
                 setTimeout(()=>location.reload(),500);
             }else await pushCloudSnapshot(code,snapshot);
@@ -8517,11 +8555,11 @@ let todayReloadingForUpdate = false;
 
     async function initializeCloudSync(){
         updateCloudSyncUI();
-        const code=localStorage.getItem(TODAY_CLOUD_CODE_KEY);
+        const code=safeStorageGet(TODAY_CLOUD_CODE_KEY);
         if(!code||!cloudSyncSupportedHere()||!window.crypto?.subtle)return;
         try{
             cloudSyncLastSeenFingerprint=await cloudFingerprint(buildCloudSnapshot());
-            if(!localStorage.getItem(TODAY_CLOUD_LAST_SYNCED_KEY))localStorage.setItem(TODAY_CLOUD_LOCAL_CHANGED_KEY,String(Date.now()));
+            if(!safeStorageGet(TODAY_CLOUD_LAST_SYNCED_KEY))safeStorageSet(TODAY_CLOUD_LOCAL_CHANGED_KEY,String(Date.now()));
         }catch(error){return;}
         clearInterval(cloudSyncTimer);
         cloudSyncTimer=setInterval(()=>{if(!document.hidden&&navigator.onLine)syncCloudNow(false);},20000);
@@ -8606,18 +8644,18 @@ let todayReloadingForUpdate = false;
                 taskFilter: currentTaskFilter
             };
 
-            localStorage.setItem(
+            safeStorageSet(
                 "todayPreImportBackup",
                 JSON.stringify(preImportSnapshot)
             );
 
-            localStorage.setItem("tasks", JSON.stringify(data.tasks));
-            localStorage.setItem("events", JSON.stringify(data.events));
-            localStorage.setItem(
+            safeStorageSet("tasks", JSON.stringify(data.tasks));
+            safeStorageSet("events", JSON.stringify(data.events));
+            safeStorageSet(
                 "projects",
                 JSON.stringify(Array.isArray(data.projects) ? data.projects : projects)
             );
-            localStorage.setItem(
+            safeStorageSet(
                 "dailyNotes",
                 JSON.stringify(
                     data.dailyNotes && typeof data.dailyNotes === "object"
@@ -8625,30 +8663,30 @@ let todayReloadingForUpdate = false;
                         : (data.notes ? { [getDateKey()]: String(data.notes) } : {})
                 )
             );
-            localStorage.setItem("notes", String(data.notes || ""));
-            localStorage.setItem(
+            safeStorageSet("notes", String(data.notes || ""));
+            safeStorageSet(
                 "activityHistory",
                 JSON.stringify(data.activityHistory && typeof data.activityHistory === "object"
                     ? data.activityHistory
                     : {})
             );
-            localStorage.setItem(
+            safeStorageSet(
                 "dailyGoal",
                 String(Math.max(1, Number(data.dailyGoal) || 3))
             );
-            localStorage.setItem(
+            safeStorageSet(
                 "accentColor",
                 String(data.accentColor || "graphite")
             );
-            localStorage.setItem(
+            safeStorageSet(
                 "appLanguage",
                 ["en", "lt", "es"].includes(data.appLanguage) ? data.appLanguage : appLanguage
             );
-            localStorage.setItem(
+            safeStorageSet(
                 "darkMode",
                 data.darkMode ? "true" : "false"
             );
-            localStorage.setItem(
+            safeStorageSet(
                 "taskFilter",
                 String(data.taskFilter || "all")
             );
@@ -8710,9 +8748,9 @@ let todayReloadingForUpdate = false;
         if (notice) notice.classList.remove("show");
 
         if (currentReminderNoticeKey) {
-            const dismissed = JSON.parse(localStorage.getItem("dismissedReminders") || "{}");
+            const dismissed = JSON.parse(safeStorageGet("dismissedReminders") || "{}");
             dismissed[currentReminderNoticeKey] = true;
-            localStorage.setItem("dismissedReminders", JSON.stringify(dismissed));
+            safeStorageSet("dismissedReminders", JSON.stringify(dismissed));
         }
 
         currentReminderNoticeKey = "";
@@ -8720,7 +8758,7 @@ let todayReloadingForUpdate = false;
 
     function checkTaskReminders() {
         const now = new Date();
-        const dismissed = JSON.parse(localStorage.getItem("dismissedReminders") || "{}");
+        const dismissed = JSON.parse(safeStorageGet("dismissedReminders") || "{}");
 
         const dueTask = tasks.find(task => {
             if (task.archived || task.completed) return false;
@@ -8761,7 +8799,7 @@ let todayReloadingForUpdate = false;
 
             if (notice) notice.classList.add("show");
 
-            const notified = JSON.parse(localStorage.getItem("browserNotifiedReminders") || "{}");
+            const notified = JSON.parse(safeStorageGet("browserNotifiedReminders") || "{}");
 
             if (
                 "Notification" in window &&
@@ -8774,7 +8812,7 @@ let todayReloadingForUpdate = false;
                     });
 
                     notified[key] = true;
-                    localStorage.setItem(
+                    safeStorageSet(
                         "browserNotifiedReminders",
                         JSON.stringify(notified)
                     );
@@ -8936,7 +8974,7 @@ let todayReloadingForUpdate = false;
         sortEvents();
 
         selectedCalendarDate = eventDate;
-        localStorage.setItem("selectedCalendarDate", selectedCalendarDate);
+        safeStorageSet("selectedCalendarDate", selectedCalendarDate);
 
         saveEvents();
         closeEventEditor();
@@ -9417,7 +9455,7 @@ function syncEventRepeatTranslations() {
 
 function setCalendarView(view) {
     calendarView = view === "month" ? "month" : "week";
-    localStorage.setItem("calendarView", calendarView);
+    safeStorageSet("calendarView", calendarView);
 
     const week = document.getElementById("calendarWeek");
     const month = document.getElementById("calendarMonth");
@@ -9616,7 +9654,7 @@ function formatLongCalendarDate(dateKey) {
 }
 
 function saveDailyNotes() {
-    localStorage.setItem("dailyNotes", JSON.stringify(dailyNotes));
+    safeStorageSet("dailyNotes", JSON.stringify(dailyNotes));
 }
 
 function loadDailyNote() {
@@ -9631,7 +9669,7 @@ function loadDailyNote() {
 
 function selectCalendarDate(dateKey) {
     selectedCalendarDate = dateKey;
-    localStorage.setItem("selectedCalendarDate", selectedCalendarDate);
+    safeStorageSet("selectedCalendarDate", selectedCalendarDate);
 
     const dateInput = document.getElementById("eventDateInput");
     if (dateInput) dateInput.value = selectedCalendarDate;
@@ -9898,7 +9936,7 @@ function addEvent() {
     saveEvents();
 
     selectedCalendarDate = eventDate;
-    localStorage.setItem("selectedCalendarDate", selectedCalendarDate);
+    safeStorageSet("selectedCalendarDate", selectedCalendarDate);
 
     renderSchedule();
     renderCalendarWeek();
@@ -9915,7 +9953,7 @@ function addEvent() {
 }
 
 function saveEvents() {
-    localStorage.setItem("events", JSON.stringify(events));
+    safeStorageSet("events", JSON.stringify(events));
 }
 
 function renderSchedule() {
@@ -10193,7 +10231,7 @@ renderSchedule();
 
     function reviewTodayTasks() {
         currentTaskFilter = "today";
-        localStorage.setItem("taskFilter", currentTaskFilter);
+        safeStorageSet("taskFilter", currentTaskFilter);
 
         syncTaskFilterButtons();
         renderTasks();
@@ -10221,7 +10259,7 @@ renderSchedule();
 
     function showOverdueTasks() {
         currentTaskFilter = "overdue";
-        localStorage.setItem("taskFilter", currentTaskFilter);
+        safeStorageSet("taskFilter", currentTaskFilter);
         syncTaskFilterButtons();
         renderTasks();
     }
@@ -10240,7 +10278,7 @@ renderSchedule();
         if (!changed) return;
 
         currentTaskFilter = "today";
-        localStorage.setItem("taskFilter", currentTaskFilter);
+        safeStorageSet("taskFilter", currentTaskFilter);
 
         saveTasks();
         syncTaskFilterButtons();
@@ -10335,7 +10373,7 @@ renderSchedule();
 
     function setTaskFilter(filter, button) {
         currentTaskFilter = filter;
-        localStorage.setItem("taskFilter", filter);
+        safeStorageSet("taskFilter", filter);
 
         document.querySelectorAll(".filter-button").forEach(btn => {
             btn.classList.toggle("active", btn.dataset.filter === filter);
@@ -10409,7 +10447,7 @@ renderSchedule();
 
     // Save tasks
     function saveTasks() {
-        localStorage.setItem("tasks", JSON.stringify(tasks));
+        safeStorageSet("tasks", JSON.stringify(tasks));
     }
 
     // Progress
@@ -10435,7 +10473,7 @@ renderSchedule();
     accentColor = allowed.includes(color) ? color : "graphite";
 
     document.body.dataset.accent = accentColor;
-    localStorage.setItem("accentColor", accentColor);
+    safeStorageSet("accentColor", accentColor);
 
     const select = document.getElementById("accentSelect");    if (select) select.value = accentColor;
 }
@@ -10450,7 +10488,7 @@ function toggleTheme() {
 
     const dark = document.body.classList.contains("dark");
 
-    localStorage.setItem("darkMode", dark);
+    safeStorageSet("darkMode", dark);
 
     document.getElementById("themeButton").textContent =
         dark ? "☀️" : "🌙";
@@ -10459,7 +10497,7 @@ function toggleTheme() {
 }
 
 // Load dark mode
-if (localStorage.getItem("darkMode") === "true") {
+if (safeStorageGet("darkMode") === "true") {
     document.body.classList.add("dark");
 
     document.getElementById("themeButton").textContent = "☀️";
@@ -10541,7 +10579,7 @@ let icon = hour >= 19 || hour < 6 ? "🌙" : "☀️";
 
     if (!/^\d{4}-\d{2}-\d{2}$/.test(selectedCalendarDate)) {
         selectedCalendarDate = getDateKey();
-        localStorage.setItem("selectedCalendarDate", selectedCalendarDate);
+        safeStorageSet("selectedCalendarDate", selectedCalendarDate);
     }
 
     updateNotificationStatus();
@@ -10613,17 +10651,26 @@ notes?.addEventListener("input", () => {
 function startToday() {
     const welcomeScreen = document.getElementById("welcomeScreen");
 
-    welcomeScreen.classList.add("hidden");
-    localStorage.setItem("todayWelcomeShown", "true");
+    if (welcomeScreen) {
+        welcomeScreen.classList.add("hidden");
+        welcomeScreen.setAttribute("aria-hidden", "true");
+    }
+
+    safeStorageSet("todayWelcomeShown", "true");
 
     setTimeout(() => {
-        if (localStorage.getItem("todayOnboardingComplete") === "true") {
+        if (safeStorageGet("todayOnboardingComplete") === "true") {
             maybeStartControlTour();
         } else {
             openOnboarding();
         }
     }, 220);
 }
+
+document.getElementById("welcomeStartButton")?.addEventListener("click", event => {
+    event.preventDefault();
+    startToday();
+});
 
 document.getElementById("taskEditPanel")?.addEventListener("click", event => {
     if (event.target.id === "taskEditPanel") {
@@ -10874,13 +10921,13 @@ function startControlTour(startIndex = 0) {
 }
 
 function restartControlTour() {
-    localStorage.removeItem("todayControlTourComplete");
+    safeStorageRemove("todayControlTourComplete");
     startControlTour(0);
 }
 
 function maybeStartControlTour() {
-    if (localStorage.getItem("todayControlTourComplete") === "true") return;
-    if (localStorage.getItem("todayOnboardingComplete") !== "true") return;
+    if (safeStorageGet("todayControlTourComplete") === "true") return;
+    if (safeStorageGet("todayOnboardingComplete") !== "true") return;
 
     const welcome = document.getElementById("welcomeScreen");
     if (welcome && !welcome.classList.contains("hidden")) return;
@@ -10913,7 +10960,7 @@ function finishControlTour() {
     overlay?.setAttribute("aria-hidden", "true");
     document.body.classList.remove("control-tour-active");
 
-    localStorage.setItem("todayControlTourComplete", "true");
+    safeStorageSet("todayControlTourComplete", "true");
 }
 
 window.addEventListener("resize", () => {
@@ -10988,7 +11035,7 @@ function renderOnboardingStep() {
 }
 
 function openOnboarding() {
-    if (localStorage.getItem("todayOnboardingComplete") === "true") return;
+    if (safeStorageGet("todayOnboardingComplete") === "true") return;
 
     const panel = document.getElementById("onboardingPanel");
     const language = document.getElementById("onboardingLanguage");
@@ -11005,7 +11052,7 @@ function openOnboarding() {
 }
 
 function skipOnboarding() {
-    localStorage.setItem("todayOnboardingComplete", "true");
+    safeStorageSet("todayOnboardingComplete", "true");
     document.getElementById("onboardingPanel")?.classList.remove("open");
     maybeStartControlTour();
 }
@@ -11026,7 +11073,7 @@ function nextOnboardingStep() {
         );
 
         dailyGoal = goal;
-        localStorage.setItem("dailyGoal", String(dailyGoal));
+        safeStorageSet("dailyGoal", String(dailyGoal));
         updateDailyGoal();
     }
 
@@ -11034,7 +11081,7 @@ function nextOnboardingStep() {
         const accent = document.getElementById("onboardingAccent")?.value || "graphite";
         setAccentColor(accent);
 
-        localStorage.setItem("todayOnboardingComplete", "true");
+        safeStorageSet("todayOnboardingComplete", "true");
         document.getElementById("onboardingPanel")?.classList.remove("open");
         maybeStartControlTour();
         return;
@@ -11062,7 +11109,7 @@ window.addEventListener("load", () => {
         icon.textContent = "🌙";
     }
 
-    if (localStorage.getItem("todayWelcomeShown") === "true") {
+    if (safeStorageGet("todayWelcomeShown") === "true") {
         welcomeScreen.classList.add("hidden");
     }
     updateSettingsThemeButton();
@@ -11071,7 +11118,7 @@ window.addEventListener("load", () => {
     setTimeout(() => {
         if (!welcomeScreen.classList.contains("hidden")) return;
 
-        if (localStorage.getItem("todayOnboardingComplete") === "true") {
+        if (safeStorageGet("todayOnboardingComplete") === "true") {
             maybeStartControlTour();
         } else {
             openOnboarding();
