@@ -1,10 +1,10 @@
-const CACHE_NAME = "today-pwa-settings-scroll-v1";
+const CACHE_NAME = "today-pwa-push-notifications-v1";
 
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css",
-  "./app.js",
+  "./styles.css?v=push-notifications-v1",
+  "./app.js?v=push-notifications-v1",
   "./manifest.webmanifest",
   "./offline.html",
   "./icons/icon.svg"
@@ -85,4 +85,39 @@ self.addEventListener("fetch", event => {
       })
     );
   }
+});
+
+
+self.addEventListener("push", event => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch (error) { data = {}; }
+
+  event.waitUntil(self.registration.showNotification(
+    data.title || "Today reminder",
+    {
+      body:data.body || "Open Today to see your reminder.",
+      icon:"./icons/icon-192.png",
+      badge:"./icons/icon-192.png",
+      tag:data.tag || "today-reminder",
+      renotify:true,
+      data:{url:data.url || "./"}
+    }
+  ));
+});
+
+self.addEventListener("notificationclick", event => {
+  event.notification.close();
+  const targetUrl = new URL(event.notification?.data?.url || "./", self.location.origin).href;
+
+  event.waitUntil(
+    clients.matchAll({type:"window",includeUncontrolled:true}).then(windowClients => {
+      for (const client of windowClients) {
+        if ("focus" in client) {
+          client.navigate(targetUrl);
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) return clients.openWindow(targetUrl);
+    })
+  );
 });
