@@ -1,4 +1,4 @@
-const CACHE_NAME = "today-pwa-online-launch-v1";
+const CACHE_NAME = "today-pwa-welcome-hotfix-v1";
 
 const APP_SHELL = [
   "./",
