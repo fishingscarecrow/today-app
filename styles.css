@@ -4837,3 +4837,26 @@ body.dark .danger-lite {
         border-radius: 18px;
     }
 }
+
+
+/* PUSH NOTIFICATIONS V1 */
+.push-notification-setting { align-items: flex-start; }
+.push-notification-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-end;
+}
+.push-notification-actions button[hidden] { display: none; }
+.push-notification-note {
+    margin-top: 6px !important;
+    max-width: 420px;
+    font-size: 9px !important;
+    line-height: 1.45 !important;
+    color: #71717a !important;
+}
+body.dark .push-notification-note { color: #a1a1aa !important; }
+@media (max-width: 520px) {
+    .push-notification-actions { width: 100%; justify-content: stretch; }
+    .push-notification-actions button { flex: 1 1 120px; }
+}
