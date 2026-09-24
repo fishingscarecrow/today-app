@@ -1,0 +1,16 @@
+TODAY PUSH NOTIFICATIONS V1
+
+After Vercel has the private VAPID key and a private Blob store:
+1. Open the installed Today app.
+2. Settings -> Reminders -> Enable.
+3. Allow notifications.
+4. Use Send test.
+5. Give a task a due date and reminder time.
+
+iPhone:
+- Install Today from Safari using Share -> Add to Home Screen first.
+- Enable notifications from inside the installed Home Screen app.
+
+Privacy:
+- Push scheduling stores reminder IDs/timestamps, not task names.
+- Notifications use generic text and open Today for the real task.
