@@ -17,5 +17,21 @@
         }
       ]
     }
+  ],
+  "functions": {
+    "api/push/worker.js": {
+      "experimentalTriggers": [
+        {
+          "type": "queue/v2beta",
+          "topic": "today-reminders"
+        }
+      ]
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/push/refill",
+      "schedule": "0 0 * * *"
+    }
   ]
 }
