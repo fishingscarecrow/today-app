@@ -1,4 +1,4 @@
-const CACHE_NAME = "today-pwa-runtime-fix-v1";
+const CACHE_NAME = "today-pwa-settings-scroll-v1";
 
 const APP_SHELL = [
   "./",
