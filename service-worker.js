@@ -1,8 +1,10 @@
-const CACHE_NAME = "today-pwa-welcome-hotfix-v1";
+const CACHE_NAME = "today-pwa-runtime-fix-v1";
 
 const APP_SHELL = [
   "./",
   "./index.html",
+  "./styles.css",
+  "./app.js",
   "./manifest.webmanifest",
   "./offline.html",
   "./icons/icon.svg"
